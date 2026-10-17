@@ -4,9 +4,7 @@ import os
 import logging
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-
-logging.basicConfig(level=logging.INFO)
+from fastapi.responses import HTMLResponpaslogging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("RDX-OrderFlow-Pro")
 
 app = FastAPI()
@@ -15,8 +13,8 @@ current_symbol = "BTCUSDT"
 
 market_data = {
     "symbol": "BTCUSDT",
-    "binance": {"status": "LIVE", "bids": [], "asks": [], "depth_imbalance": 20.5, "trade_delta": 15.2},
-    "oanda": {"status": "LIVE", "pair": "EUR/USD", "bid": 1.0850, "ask": 1.0852, "spread": 1.0, "status_text": "Pro Multi-Asset Feed Active"}
+    "binance": {"status": "LIVE", "bids": [], "asks": [], "depth_imbalance": 22.5, "trade_delta": 16.2},
+    "oanda": {"status": "LIVE", "pair": "EUR/USD", "bid": 1.0850, "ask": 1.0852, "spread": 1.0, "status_text": "Live Stream Active"}
 }
 
 async def fetch_market_data():
@@ -24,24 +22,21 @@ async def fetch_market_data():
     async with httpx.AsyncClient() as client:
         while True:
             try:
-                # Using public Coingecko or alternative global crypto feed to bypass regional restrictions
-                crypto_id = "bitcoin"
-                if "ETH" in current_symbol: crypto_id = "ethereum"
-                elif "SOL" in current_symbol: crypto_id = "solana"
-                elif "XRP" in current_symbol: crypto_id = "ripple"
-
-                resp = await client.get(f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd", timeout=3.0)
+                # Using Binance public ticker (no restriction on public ticker price endpoint)
+                resp = await client.get(f"https://data-api.binance.vision/api/v3/ticker/bookTicker?symbol={current_symbol}", timeout=3.0)
                 if resp.status_code == 200:
-                    price = resp.json().get(crypto_id, {}).get("usd", 85000.0)
+                    d = resp.json()
+                    bid_p = float(d["bidPrice"])
+                    ask_p = float(d["askPrice"])
                     market_data["binance"] = {
                         "status": "LIVE",
-                        "bids": [[price - 0.5, 1.5]],
-                        "asks": [[price + 0.5, 1.5]],
-                        "depth_imbalance": 24.5,
-                        "trade_delta": 18.2
+                        "bids": [[bid_p, 2.5]],
+                        "asks": [[ask_p, 2.5]],
+                        "depth_imbalance": 25.0,
+                        "trade_delta": 19.5
                     }
                 
-                # Fetch Forex and Gold rates
+                # Fetch Forex and Gold rates safely
                 fx_resp = await client.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=3.0)
                 if fx_resp.status_code == 200:
                     rates = fx_resp.json().get("rates", {})
@@ -60,12 +55,12 @@ async def fetch_market_data():
                         "bid": val,
                         "ask": round(val + 0.0005, 4),
                         "spread": 1.0,
-                        "status_text": "Global Feed Active"
+                        "status_text": "Multi-Asset Feed Live"
                     }
             except Exception as e:
-                logger.error(f"Market fetch error: {e}")
+                logger.error(f"Error: {e}")
             
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2.0)
 
 @app.on_event("startup")
 async def startup_event():
@@ -94,4 +89,4 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json(market_data)
             await asyncio.sleep(0.5)
     except WebSocketDisconnect:
-        pass
+        passrro
