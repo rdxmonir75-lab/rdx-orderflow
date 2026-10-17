@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDX Pro Order Flow Dashboard</title>
+    <style>
+        body { background-color: #07090e; color: #e1e6ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; margin: 0; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #121820; padding: 15px; border-radius: 10px; border: 1px solid #1f2937; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        select { background: #1a2230; color: #00ffcc; border: 1px solid #00ffcc; padding: 10px 15px; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; cursor: pointer; }
+        .card { background: #121820; border-radius: 10px; padding: 18px; margin-bottom: 15px; border: 1px solid #1f2937; }
+        .live { color: #00ffcc; font-weight: bold; animation: pulse 1.5s infinite; }
+        .green { color: #26a69a; font-weight: bold; }
+        .red { color: #ef5350; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .box { background: #080c10; padding: 12px; border-radius: 8px; border: 1px solid #1a2230; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h2 style="margin:0; font-size: 18px; color: #00ffcc;">RDX PRO FLOW</h2>
+            <small style="color: #8b949e;">Multi-Asset Order Pressure</small>
+        </div>
+        <select id="assetSelect" onchange="changeAsset()">
+            <optgroup label="Crypto Markets">
+                <option value="BTCUSDT" selected>BTC/USDT (Bitcoin)</option>
+                <option value="ETHUSDT">ETH/USDT (Ethereum)</option>
+                <option value="SOLUSDT">SOL/USDT (Solana)</option>
+                <option value="XRPUSDT">XRP/USDT (Ripple)</option>
+            </optgroup>
+            <optgroup label="Forex & Gold">
+                <option value="EURUSD">EUR/USD (Forex)</option>
+                <option value="GBPUSD">GBP/USD (Forex)</option>
+                <option value="XAUUSD">XAU/USD (Gold)</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin:0; font-size: 15px;">Live Execution Stream</h3>
+            <span class="live">● LIVE</span>
+        </div>
+        <p style="margin: 8px 0 15px 0; font-size: 13px; color: #8b949e;">Active Instrument: <b id="lbl-symbol" style="color: #00ffcc;">BTCUSDT</b></p>
+        <div class="grid">
+            <div class="box">
+                <small style="color: #8b949e;">Bid / Buy Price</small>
+                <div id="bid-val" class="green" style="font-size: 20px; margin-top: 5px;">$0.00</div>
+            </div>
+            <div class="box">
+                <small style="color: #8b949e;">Ask / Sell Price</small>
+                <div id="ask-val" class="red" style="font-size: 20px; margin-top: 5px;">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin:0 0 10px 0; font-size: 15px;">Order Imbalance & Pressure</h3>
+        <p style="margin: 5px 0;">Depth Pressure Ratio: <span id="imb-val" class="green">0%</span></p>
+        <p style="font-size: 12px; color: #8b949e; margin-top: 10px;">Select any coin, forex pair, or gold from the menu above to instantly track real-time buyer/seller dominance.</p>
+    </div>
+
+    <script>
+        const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws');
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            document.getElementById('lbl-symbol').innerText = data.symbol;
+            
+            if(data.binance && data.binance.bids.length > 0) {
+                document.getElementById('bid-val').innerText = '$' + data.binance.bids[0][0];
+                document.getElementById('ask-val').innerText = '$' + data.binance.asks[0][0];
+                let imb = data.binance.depth_imbalance;
+                let imbEl = document.getElementById('imb-val');
+                imbEl.innerText = imb + '%';
+                imbEl.className = imb >= 0 ? 'green' : 'red';
+            }
+            
+            if(['EURUSD', 'GBPUSD', 'XAUUSD'].includes(data.symbol) && data.oanda) {
+                document.getElementById('bid-val').innerText = '$' + data.oanda.bid;
+                document.getElementById('ask-val').innerText = '$' + data.oanda.ask;
+            }
+        };
+
+        function changeAsset() {
+            const selected = document.getElementById('assetSelect').value;
+            ws.send(JSON.stringify({ change_symbol: selected }));
+        }
+    </script>
+</body>
+  </html>
